@@ -49,7 +49,7 @@ except Exception as e:
     print("This often means the API Key is invalid or has no access.")
 
 # 4. Test Generation
-model_name = 'gemini-2.0-flash'
+model_name = 'gemini-flash-latest'
 
 if model_name:
     print(f"\n[INFO] Testing generation with model: {model_name}")

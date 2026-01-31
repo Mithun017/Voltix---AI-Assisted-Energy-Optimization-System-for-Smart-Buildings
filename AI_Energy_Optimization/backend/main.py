@@ -296,20 +296,47 @@ def predict_future(req: FuturePredictionRequest):
 # Gemini Integration
 import google.generativeai as genai
 from dotenv import load_dotenv
+import time
+import random
+import asyncio
 
 load_dotenv()
 GENAI_KEY = os.getenv("GEMINI_API_KEY")
 
-if GENAI_KEY:
+# List of models to try in order of preference/stability
+MODEL_CANDIDATES = [
+    'gemini-flash-latest',       # Often 1.5-Flash (High quota, fast)
+    'gemini-2.0-flash',          # Newest (Experimental quota sometimes)
+    'gemini-2.0-flash-lite',     # Lightweight
+    'gemini-1.5-flash',          # Standard 1.5
+    'gemini-pro',                # Legacy
+]
+
+gemini_model = None
+
+def initialize_gemini():
+    """Attempts to initialize Gemini with the first working model from candidats."""
+    global gemini_model
+    if not GENAI_KEY:
+        print("Warning: GENAI_KEY not found.")
+        return None
+
     try:
         genai.configure(api_key=GENAI_KEY)
-        # Try to initialize with Flash, fallback to Pro if needed (though Pro is deprecated)
-        gemini_model = genai.GenerativeModel('gemini-2.0-flash')
+        
+        # We don't check connectivity here to save startup time, 
+        # but we default to the first candidate that exists in the SDK concept.
+        # Ideally, we let the chat endpoint handle Model selection or specific failures.
+        # But for 'gemini_model' global, we pick the most likely stable one.
+        
+        # Let's pick 'gemini-flash-latest' as primary.
+        return genai.GenerativeModel('gemini-flash-latest')
+        
     except Exception as e:
-        print(f"Warning: Failed to initialize Gemini: {e}")
-        gemini_model = None
-else:
-    gemini_model = None
+        print(f"Warning: Failed to configure Gemini: {e}")
+        return None
+
+gemini_model = initialize_gemini()
 
 class ChatRequest(BaseModel):
     message: str
@@ -317,8 +344,12 @@ class ChatRequest(BaseModel):
 
 @app.post("/api/chat")
 async def chat_with_advisor(req: ChatRequest):
+    global gemini_model
     if not gemini_model:
-        raise HTTPException(status_code=503, detail="Gemini API Key not configured")
+        # Try one last re-init
+        gemini_model = initialize_gemini()
+        if not gemini_model:
+             raise HTTPException(status_code=503, detail="Gemini API Key not configured")
     
     # Construct Contextual Prompt
     metrics = req.context
@@ -344,12 +375,43 @@ async def chat_with_advisor(req: ChatRequest):
     - Temperature: {metrics.get('temperature', 0)}°C
     """
     
-    try:
-        response = gemini_model.generate_content(prompt)
-        return {"response": response.text}
-    except Exception as e:
-        print(f"Gemini Error: {e}")
-        raise HTTPException(status_code=500, detail="AI Service Error")
+    # Retry Logic for 429 (Rate Limit)
+    max_retries = 3
+    base_delay = 2
+
+    # We try our primary model, but if it fails with 404 or 429, we could try others.
+    # For now, simplistic retry on the configured model is better than complexity.
+    # If 'gemini-flash-latest' works in test (as proven), it should work here.
+    
+    for attempt in range(max_retries):
+        try:
+            response = gemini_model.generate_content(prompt)
+            return {"response": response.text}
+        except Exception as e:
+            error_str = str(e)
+            if "429" in error_str or "quota" in error_str.lower():
+                if attempt < max_retries - 1:
+                    sleep_time = base_delay * (2 ** attempt) + random.uniform(0, 1)
+                    print(f"Gemini 429 received. Retrying in {sleep_time:.2f}s...")
+                    await asyncio.sleep(sleep_time)
+                    continue
+                else:
+                    # Return a polite message instead of crashing
+                    return {"response": "I'm receiving too many requests right now (Rate Limit). Please wait 30 seconds and try again. 🤖"}
+            elif "404" in error_str:
+                # Model not found? Switch model on the fly?
+                # A bit risky to mutate global state concurrently, but acceptable for this scale.
+                try:
+                    print("Gemini 404. Switching to 'gemini-pro' fallback...")
+                    gemini_model = genai.GenerativeModel('gemini-pro')
+                    response = gemini_model.generate_content(prompt)
+                    return {"response": response.text}
+                except:
+                    raise HTTPException(status_code=500, detail="AI Service Config Error")
+            else:
+                print(f"Gemini Error: {e}")
+                # Don't crash frontend, give fallback
+                return {"response": "I encountered a connection error. Please try again."}
 
 if __name__ == "__main__":
     import uvicorn

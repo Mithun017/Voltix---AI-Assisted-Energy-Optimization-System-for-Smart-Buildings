@@ -1,0 +1,6 @@
+building_id,building_type,area_sq_m,hvac_type
+B001,Office,1920,Split AC
+B002,Academic,3609,VRF
+B003,Office,2970,Split AC
+B004,Hostel,4474,Split AC
+B005,Academic,2327,Central Chiller

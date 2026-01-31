@@ -1,0 +1,45 @@
+VOLTIX AI - TECHNOLOGY STACK DOCUMENTATION
+============================================
+
+FRONTEND (User Interface)
+-------------------------
+*   Framework: React 18
+*   Build Tool: Vite (Fast HMR & Bundling)
+*   Language: JavaScript (ES6+ / JSX)
+*   Styling: Vanilla CSS3 (Glassmorphism, CSS Variables, Flex/Grid)
+*   Visualization: Recharts (Data Visualization Library)
+*   HTTP Client: Native Fetch API
+
+BACKEND (Server & Logic)
+------------------------
+*   Framework: FastAPI (Python 3.10+)
+*   Server: Uvicorn (ASGI Implementation)
+*   Data Processing: Pandas (DataFrames), NumPy (Math)
+*   API Style: RESTful API
+*   Environment Management: python-dotenv
+
+MACHINE LEARNING (Energy Forecasting)
+-------------------------------------
+*   Library: Scikit-Learn
+*   Algorithm: Random Forest Regressor (Ensemble Learning)
+*   Model Features:
+    - Building Type Code
+    - Area (sq m)
+    - Temperature
+    - Humidity
+    - Occupancy Code
+    - Time Features (Hour, Day, Weekend)
+*   Serialization: Joblib (Model persistence)
+
+ARTIFICIAL INTELLIGENCE (GenAI Advisor)
+---------------------------------------
+*   Provider: Google AI Studio
+*   Model: Gemini 1.5 Flash
+*   SDK: google-generativeai
+*   Integration: Context-aware prompting (Building Metadata + Live Metrics passed to AI)
+
+DEVOPS & TOOLS
+--------------
+*   Version Control: Git
+*   Platform: Windows (Batch Script Automation)
+*   IDE: VS Code (Recommended)

@@ -304,7 +304,7 @@ if GENAI_KEY:
     try:
         genai.configure(api_key=GENAI_KEY)
         # Try to initialize with Flash, fallback to Pro if needed (though Pro is deprecated)
-        gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+        gemini_model = genai.GenerativeModel('gemini-2.0-flash')
     except Exception as e:
         print(f"Warning: Failed to initialize Gemini: {e}")
         gemini_model = None

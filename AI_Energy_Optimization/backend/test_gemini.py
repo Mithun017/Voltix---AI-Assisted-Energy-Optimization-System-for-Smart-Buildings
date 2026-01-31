@@ -3,72 +3,71 @@ import os
 from dotenv import load_dotenv
 import sys
 
-# Load environment variables
-load_dotenv()
+# Check for .env file
+env_path = os.path.join(os.path.dirname(__file__), '.env')
+# Explicitly print path for debugging
+print(f"Checking for .env at: {env_path}")
+if os.path.exists(env_path):
+    print(f"[INFO] Found .env file.")
+else:
+    print("[WARNING] No .env file found in backend directory!")
+
+load_dotenv(env_path)
 
 print("--- Voltix Gemini Diagnostic Tool ---")
 
 # 1. Check API Key
 api_key = os.getenv("GEMINI_API_KEY")
 if not api_key:
-    print("❌ ERROR: GEMINI_API_KEY not found in environment variables.")
-    print("   Please make sure you have a .env file in the backend directory with GEMINI_API_KEY=your_key_here")
+    # Try looking in os.environ just in case
+    print("[ERROR] GEMINI_API_KEY not found in environment variables.")
     sys.exit(1)
 else:
     masked_key = api_key[:4] + "..." + api_key[-4:]
-    print(f"✅ API Key found: {masked_key}")
+    print(f"[OK] API Key found: {masked_key}")
 
 # 2. Configure GenAI
 try:
     genai.configure(api_key=api_key)
-    print("✅ GenAI Library configured.")
+    print("[OK] GenAI Library configured.")
 except Exception as e:
-    print(f"❌ ERROR: Failed to configure GenAI: {e}")
+    print(f"[ERROR] Failed to configure GenAI: {e}")
     sys.exit(1)
 
-# 3. List Available Models
-print("\n--- Listing Available Models ---")
+# 3. List Models
+print("\n[INFO] Checking available models...")
 try:
-    models = list(genai.list_models())
     found_flash = False
     found_pro = False
-    
-    for m in models:
-        # print(f" - {m.name} (Methods: {m.supported_generation_methods})")
+    for m in genai.list_models():
         if 'generateContent' in m.supported_generation_methods:
-            print(f"   * {m.name}")
-            if "gemini-1.5-flash" in m.name:
-                found_flash = True
-            if "gemini-pro" in m.name:
-                found_pro = True
-    
-    if not models:
-        print("⚠️ WARNING: No models list returned. API Key might be invalid or has no access.")
+            print(f" - Found Model: {m.name}")
+            if 'gemini-1.5-flash' in m.name: found_flash = True
+            if 'gemini-pro' in m.name: found_pro = True
 except Exception as e:
-    print(f"❌ ERROR: Failed to list models. Your API Key might be invalid or network is blocked.")
-    print(f"   Details: {e}")
-    sys.exit(1)
+    print(f"[ERROR] Failed to list models: {e}")
+    print("This often means the API Key is invalid or has no access.")
 
-# 4. Test Generation
-print("\n--- Testing Generation ---")
-target_model = 'gemini-1.5-flash' if found_flash else 'gemini-pro'
-print(f"Attempting to use model: {target_model}")
+# 4. Test Generation logic
+model_name = 'gemini-1.5-flash' if found_flash else ('gemini-pro' if found_pro else None)
 
-try:
-    model = genai.GenerativeModel(target_model)
-    response = model.generate_content("Hello, reply with 'Gemini is working!' if you can read this.")
-    print(f"\n🎉 SUCCESS! Response from AI:\n{response.text}")
-except Exception as e:
-    print(f"\n❌ ERROR: Generation failed with model {target_model}.")
-    print(f"   Details: {e}")
-    if target_model == 'gemini-1.5-flash' and found_pro:
-        print("\n   Retrying with 'gemini-pro'...")
-        try:
-            model = genai.GenerativeModel('gemini-pro')
-            response = model.generate_content("Hello, verification fallback.")
-            print(f"   ✅ Fallback 'gemini-pro' worked: {response.text}")
-        except Exception as e2:
-            print(f"   ❌ Fallback failed too: {e2}")
+if model_name:
+    print(f"\n[INFO] Testing generation with model: {model_name}")
+    try:
+        model = genai.GenerativeModel(model_name)
+        response = model.generate_content("Say hello.")
+        print(f"[SUCCESS] Gemini Response: {response.text}")
+    except Exception as e:
+        print(f"[ERROR] Generation failed: {e}")
+else:
+    print("\n[WARNING] Could not find a suitable 'gemini' model in the list.")
+    # Try flash anyway as fallback
+    print("[INFO] Attempting 'gemini-1.5-flash' blindly...")
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content("Say hello.")
+        print(f"[SUCCESS] Gemini Response: {response.text}")
+    except Exception as e:
+         print(f"[ERROR] Blind attempt failed: {e}")
 
-print("\n--- End of Diagnostic ---")
-input("Press Enter to exit...")
+print("\n--- Diagnostic Complete ---")

@@ -48,8 +48,8 @@ except Exception as e:
     print(f"[ERROR] Failed to list models: {e}")
     print("This often means the API Key is invalid or has no access.")
 
-# 4. Test Generation logic
-model_name = 'gemini-1.5-flash' if found_flash else ('gemini-pro' if found_pro else None)
+# 4. Test Generation
+model_name = 'gemini-2.0-flash'
 
 if model_name:
     print(f"\n[INFO] Testing generation with model: {model_name}")
